@@ -1,0 +1,217 @@
+PROJET A&G 2013 : le principe de l'indexation de Google
+
+un parser de page html qui calcule la fréquence des mots pour trouver les mots-clefs
+
+* Principe 
+
+On considère la grammaire du langage html constitué de balise de la forme
+
+<XXX arguments> texte html </XXX>
+
+Les arguments des balises sont de la forme  identificateur = valeur
+et sont séparés par des espaces.
+
+Le but du projet est un outil réalisé en caml qui 
+1. parse une page html
+2. construit la liste des mots avec leur fréquence (donc de type (int * string) list)
+3. triée dans l'ordre des mots les plus fréquents
+4. affiche les 20 mots les plus fréquents
+
+* Projet à réaliser en binôme
+
+Les soutenances de projet A&G ont lieu au dernier TD (le mercredi 8 janvier).
+
+La soutenance consiste en : exposé de 5 min + démo de 5 min + 5 min de question
+
+** Code fournit par les enseignants
+
+Les enseignants mettent à votre disposition deux fichiers :
+
+- mystream.ml     : qui fournit des fonctions de bases sur les streams
+- token_parser.ml : qui utilise les fonctions du précédent pour écrire un tokenizer, il s'agit d'une fonction qui 
+  1. ouvre un fichier en lecture,
+  2. le transforme en flot de caractères
+  3. le parse (en plusieurs passes) de manière à se débarasser des éléments inutiles (tels que les espaces, les commentaires, ...) et à produire un flot de tokens
+
+*Un token* est un groupe de caractères qui forme une unité significative pour la suite de l'analyse. 
+
+Dans notre cas, les unités significatives sont 
+1. les mots représentés par Word of string
+2. les balises ouvrantes représentées par  Open of string
+3. les balises fermantes représentées par  Close of string
+
+  
+** Exemple fournis par les enseignants
+
+On vous fournit 5 exemples de pages html que le tokenizer sait lire et mettre sous forme d'un flot de token.
+Vous pouvez bien sûr les lire avec un navigateur et les ouvrir dans un éditeur de texte pour regarder comment elles sont contruites.
+
+Votre outil devra au minimum fonctionner sur ces exemples, qui serviront à évaluer votre réalisation lors de la démo.
+
+** Réalisation d'un parser calculateur de fréquence
+
+*Attention*, il arrive fréquemment dans les pages html que des balises soitent ouvertes et jamais refermées.
+Votre parser doit malgré tout les accepter et faire le calcul de fréquence le plus approprié.
+
+Votre grammaire devra donc avoir la forme suivante :
+
+Html ---> Open balise  . Html
+       |  Close balise . Html
+       | ...
+
+et NON PAS
+
+Html ---> Open balise . Html . Close balise  
+       | ... 
+
+qui refuserait trop de page
+
+
+* La note de projet dépend de l'objectif que vous visez
+
+[10/20] le projet de base
+
+[12/20] ce qui précède, avec une exigence supplémentaire :  
+        Les mots reçoivent un bonus s'ils sont dans l'une des balises suivantes 
+         <TITLE> <H1> <H2> <H3> <B> <I>
+
+[14/20] ce qui précède, avec une exigence supplémentaire :  
+        Les mots très fréquents mais non significatifs comme "de", "à", "le", "les", "du", ...
+        sont exclus de la liste de mots clefs
+
+[16/20] ce qui précède, avec une exigence supplémentaire :  
+        On ne fait plus la distinction entre les mots accentués ou non, en majuscule ou non, pluriel ou non.
+        Autrement dit, on considère que "Impressionnées" = "impressionnés" = "impressionné",
+	ce qui permet de retourner 
+	  [ (3,"impressionné")] 
+        au lieu de 
+          [(1,"Impressionnées") ; (1,"impressionnés") ; (1,"impressionne")]
+	
+[18/20] ce qui précède, avec une exigence supplémentaire :  
+        On effectue le calcul de fréquence pas seulement au niveau d'un mot mais aussi en considérant les groupes de mots.
+	Par exemple, dans le cas d'une page web sur les nombres complexes, on ne dira pas que "nombre" apparaît X fois et
+        "complexe" apparaît Y fois mais que "nombre complexe" apparaît
+        X+Y fois puisque dans la majorité des cas (disons M cas) "nombre" et
+        "complexe" sont associées. À vous de trouver le bon critère
+        sur M, X et Y qui permet de modéliser la notion intuitive de «dans la majorité des cas».
+
+
+* Exemple de résultats attendus
+
+Le parser de 100 lignes de caml écrit par les enseignants appliqué aux pages données en exemples fournit les résultats suivants :
+
+
+1. Pour page1.html votre outil doit fournir un résultat ressemblant à ceci :
+
+[("informatique", 222); ("systeme", 200); ("recherche", 154);
+ ("laboratoire", 129); ("magistere", 111); ("grenoble", 108);
+ ("modelisation", 101); ("analyse", 76); ("conception", 70); ("system", 67);
+ ("autour", 55); ("architecture", 53); ("reseaux", 52); ("embarque", 50);
+ ("optimisation", 50); ("verification", 47); ("institut", 44);
+ ("universite", 44); ("calcul", 38); ("distribue", 36); ("production", 33);
+ ("demande", 32); ("2013-2014", 31); ("algorithme", 31); ("partenaire", 31);
+ ("recheche", 31); ("dynamique", 30); ("equipe", 29); ("modele", 28);
+ ("information", 27); ("methode", 26); ("numerique", 26); ("perception", 26);
+ ("science", 26); ("technique", 26); ("controle", 25); ("geometrie", 25);
+ ("statistique", 24); ("traitement", 24); ("connaissance", 23);
+ ("observation", 23); ("biologie", 22); ("certification", 22);
+ ("integrated", 22); ("lineaire", 22); ("projet", 20); ("simulation", 19);
+ ("environnement", 18); ("logiciel", 17); ("preuve", 17);
+ ("application", 16); ("apprentissage", 16); ("circuit", 16);
+ ("commande", 15); ("algorithmique", 14); ("capteur", 14);
+ ("compilation", 14); ("complexite", 14); ("gestion", 14);
+ ("multimedia", 14); ("ordinateur", 14); ("programme", 14);
+ ("representation", 14); ("service", 14); ("vision", 14); ("applique", 13);
+ ("composant", 13); ("concurrent", 13); ("construction", 13);
+ ("formelle", 13); ("hybride", 13); ("interactif", 13); ("interaction", 13);
+ ("interpretation", 13); ("mathematique", ...); ...]
+
+2. pour page2.html :
+
+[("guanyuan", 133); ("shiatsu", 96); ("seminaire", 87); ("novembre", 86);
+ ("aunkai", 63); ("sensei", 59); ("gainage", 49); ("akuzawa", 46);
+ ("atelier", 46); ("renforcement", 46); ("samedi", 45); ("minoru", 44);
+ ("musculaire", 44); ("rentre", 44); ("tension", 44); ("commentaire", 43);
+ ("interview", 43); ("manabu", 43); ("masterclass", 43); ("postural", 43);
+ ("recent", 42); ("categorie", 41); ("mensuel", 41); ("parisien", 41);
+ ("presentation", 41); ("printemps", 41); ("watanabe", 41); ("exercice", 26);
+ ("travail", 18); ("partie", 15); ("beaucoup", 13); ("colonne", 12);
+ ("vertebrale", 12); ("bientot", 10); ("different", 10); ("epaule", 10);
+ ("mouvement", 10); ("comment", 9); ("important", 9); ("lorsque", 9);
+ ("pratique", 9); ("bassin", 8); ("muscle", 8); ("personne", 8);
+ ("pratiquant", 8); ("realise", 8); ("structure", 8); ("alignement", 7);
+ ("extension", 7); ("utilise", 7); ("applique", 6);
+ ("articulation", 6); ("crispation", 6); ("enseignement", 6);
+ ("formation", 6); ("interieur", 6); ("largeur", 6); ("massage", 6);
+ ("quelque", 6); ("question", 6); ("superieure", 6); ("arriere", 5);
+ ("bouger", 5); ("centre", 5); ("charge", 5); ("connexion", 5);
+ ("correctement", 5); ("exemple", 5); ("maintenir", 5); ("medecine", 5);
+ ("octobre", 5); ("partenaire", 5); ("pouvez", 5); ("pression", ...); ...]
+
+3. pour page3.html :
+
+[("pittman", 151); ("over-blog", 104); ("la-pratique-sauvage", 103);
+ ("recherche", 50); ("commentaire", 44); ("article", 43); ("categorie", 42);
+ ("communaute", 41); ("dernier", 41); ("presentation", 41); ("profil", 41);
+ ("recent", 41); ("recommander", 41); ("pratique", 23); ("enseigne", 19);
+ ("beaucoup", 16); ("lorsque", 16); ("comment", 15); ("martiaux", 15);
+ ("enseignant", 13); ("methode", 13); ("quelque", 12); ("personne", 11);
+ ("technique", 11); ("chinois", 10); ("partie", 10); ("etudier", 9);
+ ("maitre", 9); ("martiale", 9); ("pendant", 9); ("sagesse", 9);
+ ("parler", 8); ("quelqu", 8); ("question", 8); ("retour", 8);
+ ("tradition", 8); ("aikido", 7); ("aspect", 7); ("different", 7);
+ ("etudie", 7); ("mouvement", 7); ("travail", 7);
+ ("competition", 6); ("demande", 6); ("enfant", 6);
+ ("etaient", 6); ("exemple", 6); ("pouvez-vous", 6); ("premiere", 6);
+ ("savoir", 6); ("taiwan", 6); ("ailleur", 5); ("developpe", 5);
+ ("discipline", 5); ("enseigner", 5); ("esprit", 5); ("interesse", 5);
+ ("lorsqu", 5); ("origine", 5); ("plupart", 5); ("plusieur", 5);
+ ("pratiquant", 5); ("semaine", 5); ("simplement", 5); ("souvent", 5);
+ ("systeme", 5); ("tamaki", 5); ("voulais", 5); ("amazone", 4);
+ ("application", 4); ("apprendre", 4); ("arrive", 4); ("autour", ...);
+ ...]
+
+4. pour page4.html :
+
+[("modifier", 2807); ("stallone", 281); ("razzie", 234); ("sylvester", 209);
+ ("acteur", 204); ("festival", 129); ("golden", 122); ("wikipedia", 105);
+ ("expendable", 90); ("retour", 86); ("scenario", 86); ("realisateur", 83);
+ ("biographie", 74); ("meilleur", 74); ("hollywood", 73); ("mission", 73);
+ ("scenariste", 69); ("international", 68); ("speciale", 54);
+ ("cliffhanger", 48); ("reference", 48); ("action", 44); ("balboa", 44);
+ ("filmographie", 44); ("francaise", 44); ("cowboy", 42);
+ ("distinction", 42); ("driven", 42); ("sommaire", 41); ("choice", 36);
+ ("people", 36); ("sommet", 36); ("traque", 36); ("epoque", 34);
+ ("traverse", 34); ("camera", 33); ("desert", 33); ("mostra", 33);
+ ("television", 33); ("venise", 33); ("academy", 32); ("affiche", 32);
+ ("america", 32); ("bibliographie", 32); ("circle", 32); ("convention", 32);
+ ("critic", 32); ("donatello", 32); ("externe", 32); ("fantasy", 32);
+ ("fiction", 32); ("horror", 32); ("pudding", 32); ("reporter", 32);
+ ("revelation", 32); ("science", 32); ("showest", 32); ("spring", 32);
+ ("stockholm", 32); ("theatrical", 32); ("writer", 32); ("zurich", 32);
+ ("daylight", 30); ("expert", 30); ("securite", 26); ("arrete", 25);
+ ("assassin", 25); ("carter", 25); ("smithe", 25); ("demolition", 24);
+ ("embrouille", 24); ("revanche", 24); ("taverne", 24); ("article", 19);
+ ("contender", ...); ...]
+
+5. pour page5.html
+
+[("modifier", 844); ("condorcet", 274); ("methode", 226); ("wikipedia", 105);
+ ("exemple", 75); ("navigation", 73); ("groupe", 49); ("conflit", 47);
+ ("alternatif", 46); ("decompte", 44); ("compare", 43); ("utilisation", 43);
+ ("deroulement", 42); ("externe", 42); ("motivation", 42);
+ ("resolution", 42); ("sommaire", 41); ("graphe", 35); ("classement", 34);
+ ("mauvaise", 34); ("defaite", 33); ("rechercher", 32); ("action", 31);
+ ("affichage", 31); ("contribuer", 31); ("espace", 31); ("exporter", 31);
+ ("imprimer", 31); ("langue", 31); ("personnel", 31); ("variante", 31);
+ ("candidat", 26); ("contre", 16); ("electeur", 10); ("article", 8);
+ ("pluralite", 7); ("remporte", 7); ("unique", 7); ("a_lang", 6);
+ ("analyse", 6); ("application", 6); ("decision", 6); ("ensemble", 6);
+ ("gagnant", 6); ("possible", 6); ("probabilite", 6); ("rendue", 6);
+ ("simuler", 6); ("chaque", 5); ("paradoxe", 5); ("prefere", 5);
+ ("resultat", 5); ("utilise", 5); ("votant", 5); ("confrontation", 4);
+ ("election", 4); ("existe", 4); ("preferent&", 4); ("systeme", 4);
+ ("vainqueur", 4); ("classe", 3); ("majoritaire", 3); ("nombre", 3);
+ ("organisation", 3); ("portail", 3); ("preference", 3); ("preferent", 3);
+ ("resoudre", 3); ("scrutin", 3); ("version", 3); ("appelle", 2);
+ ("appliquer", 2); ("arrive", 2); ("auteur", 2); ("boucle", ...); ...]
