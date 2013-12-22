@@ -5,30 +5,33 @@
       ledit ocaml dynlink.cma camlp4o.cma myStream.cmo
       #use "<file>_parser.ml";;
 
- * Pour interpréter un fichier contenant "parser"
+ * Pour interprÃ©ter un fichier contenant "parser"
       ledit ocaml dynlink.cma camlp4o.cma 
       #use "<file>_parser.ml";;
 
  * Pour afficher la traduction en ocaml: 
       camlp4o -impl <file>_parser.ml
 
- * Pour générer  la traduction dans un fichier .ml:
+ * Pour gÃ©nÃ©rer  la traduction dans un fichier .ml:
       camlp4o -impl <File>_parser.ml -o <file>.ml
 
- * Pour interpréter le fichier ocaml généré: 
+ * Pour interprÃ©ter le fichier ocaml gÃ©nÃ©rÃ©: 
       ledit ocaml dynlink.cma camlp4o.cma myStream.cmo
       #use "<file>.ml";;
  *)
 
 
 (* === function on string === *)
-
+(*
+#load "dynlink.cma"
+#load "camlp4o.cma"
+#load "myStream.cmo"
+*)
 let (split_at: int -> string -> string * string) = fun k ch ->
       let l = String.length ch in 
 	if l < k
 	then ("", ch)
 	else (String.sub ch 0 k, String.sub ch k (l-k) )
-;;
 
 
 (* === Definition of the significant categories === *)
@@ -58,8 +61,7 @@ let (pretty_token: token -> string) = function
 
 let (print_token: token -> unit) = fun token -> 
       print_string ((pretty_token token) ^ " ")
-;;
-  
+
 
 
 (* === Grammar of integers ==================
@@ -72,8 +74,8 @@ let (print_token: token -> unit) = fun token ->
 let rec (integer: char Stream.t -> int) = fun stream -> at_least_one_digit 0 stream
 
 and (at_least_one_digit: int -> char Stream.t -> int) = fun i ->
-      parser
-	| [< d = digit ; r = some_digit (10*i+d) >] -> r
+   parser
+    | [< d = digit ; r = some_digit (10*i+d) >] -> r
 		  
 and (digit: char Stream.t -> int) = 
   parser
@@ -83,9 +85,10 @@ and (some_digit: int -> char Stream.t -> int) = fun i ->
       parser
 	| [< d = digit ; r = some_digit (10*i+d) >] -> r
 	| [< >] -> i
-;;
 	  
 
+		  
+	      
 (* === Grammar of Identifiers ===================
    Ident  -> Letter Ident_Cont
    Ident_Cont -> "" 
@@ -113,6 +116,7 @@ let (chiffre: char Stream.t -> string) =
   parser
     | [< ' ('0'..'9' as char) >] -> (String.make 1 char)
 
+(* String.lowercase renvoie un string avec toutes majuscules en minuscules*)
 let (letter: char Stream.t -> string) = 
   parser
     | [< ' ('a'..'z' | 'A'..'Z' as char) >] -> String.lowercase (String.make 1 char)
@@ -131,35 +135,52 @@ let (accent: char Stream.t -> string) =
      | [< ' ('\013') >] -> " " (* CR *)
      | [< ' ('\092') >] -> "" (* \ *)
      | [< ' ('\038') >] -> "&" (* & *)
-     | [< ' ('\233') >] -> "e" (* é *)
+     | [< ' ('\233') >] -> "e" (* Ã© *)
      | [< ' ('&')    >] -> "&" 
      | [< ' ('\127'..'\255' as c) >] ->
              (match c with
-	     | '\171' -> "``" (* « *)
-	     | '\187' -> "''" (* » *)
+	     | '\171' -> "``" (* Â« *)
+	     | '\187' -> "''" (* Â» *)
 	     | '\184' -> "," (* , *)
-	     | '\224' -> "a" (* à *)
-	     | '\226' -> "a" (* â *)
-	     | '\232' -> "e" (* è *)
-	     | '\233' -> "e" (* é *)
-	     | '\234' -> "e" (* ê *) 
-	     | '\235' -> "e" (* ë *) 
-	     | '\236' -> "i" (* ì *) 
-	     | '\237' -> "i" (* í *) 
-	     | '\238' -> "i" (* î *) 
-	     | '\239' -> "i" (* ï *) 
-	     | '\244' -> "o" (* ô *) 
-	     | '\249' -> "u" (* ù *) 
-	     | '\250' -> "u" (* ú *) 
-	     | '\251' -> "u" (* û *) 
-	     | '\252' -> "u" (* ü *) 
-	     | '\192' -> "A" (* À *) 
-	     | '\201' -> "E" (* É *) 
-	     | '\212' -> "O" (* Ô *) 
-	     | '\219' -> "C" (* Ç *) 
-	     | '\231' -> "c" (* ç *) 
+	     | '\224' -> "a" (* Ã  *)
+	     | '\226' -> "a" (* Ã¢ *)
+	     | '\232' -> "e" (* Ã¨ *)
+	     | '\233' -> "e" (* Ã© *)
+	     | '\234' -> "e" (* Ãª *) 
+	     | '\235' -> "e" (* Ã« *) 
+	     | '\236' -> "i" (* Ã¬ *) 
+	     | '\237' -> "i" (* Ã­ *) 
+	     | '\238' -> "i" (* Ã® *) 
+	     | '\239' -> "i" (* Ã¯ *) 
+	     | '\244' -> "o" (* Ã´ *) 
+	     | '\249' -> "u" (* Ã¹ *) 
+	     | '\250' -> "u" (* Ãº *) 
+	     | '\251' -> "u" (* Ã» *) 
+	     | '\252' -> "u" (* Ã¼ *) 
+	     | '\192' -> "A" (* Ã€ *) 
+	     | '\201' -> "E" (* Ã‰ *) 
+	     | '\212' -> "O" (* Ã” *) 
+	     | '\219' -> "C" (* Ã‡ *) 
+	     | '\231' -> "c" (* Ã§ *) 
 	     |  _ ->"?"
 	     )
+let rec (ident: char Stream.t -> token) =
+  parser
+    | [< l = letter     ; stream >] -> ident_cont l stream
+    | [< u = underscore ; stream >] -> ident_cont u stream
+
+and (ident_cont: string -> char Stream.t -> token) = fun string ->
+      parser
+	| [< l = letter     ; stream >] -> ident_cont (string ^ l) stream
+	| [< c = chiffre    ; stream >] -> ident_cont (string ^ c) stream
+	| [< u = underscore ; stream >] -> ident_cont (string ^ u) stream
+	| [< c = column     ; stream >] -> ident_cont (string ^ c) stream
+	| [< >] -> Ident string
+(*
+Looping recursion 
+let rec fact n = if n=1 then 1 else n * fact (n-1) * fact2 (n-1)
+and fact2 r = if r=0 then 0 else r*fact (r-1)
+*)
 
 let rec (ident: char Stream.t -> token) =
   parser
@@ -217,9 +238,9 @@ and (symbol_cont: string -> char Stream.t -> string) = fun prefix ->
     | [< ' (':'|';'|'='|'.'|'/'|'>' as char) >] -> prefix ^ (String.make 1 char) 
     | [< ' ('!'|'-' as char) ; stream >] -> symbol_cont (prefix ^ (String.make 1 char)) stream
     | [< >] ->  prefix
-;;
 
 (* === Quoted Strings ==== *)
+
 
 let (quoted: char Stream.t -> string) = 
   parser
@@ -241,6 +262,7 @@ let (opening_mark_end: token list -> string -> token list -> token Stream.t -> t
       parser
       | [< '(Symbol ">") >] -> [ Open mark ]
       | [< >] -> prefix @ [ Ident mark ] @ parameters
+
 
 let (opening_mark_cont: token list -> token Stream.t -> token list) = fun prefix ->
   parser
@@ -349,8 +371,8 @@ let (* USER *) (tokenizer: char Stream.t -> token Stream.t) = fun stream -> toke
 let (* USER *) (tokenize_file: string -> bool * 't Stream.t) = fun filename -> MyStream.parse_file_with tokenizer filename
 
 
-
-(* === TESTS on STRING === 
+(*
+(* === TESTS on STRING === *)
 
 let (test_tokenizer: (char Stream.t -> 't Stream.t) -> string -> bool * 't list) = fun this_tokenizer string ->
       let (bool, t_stream) = parse_with this_tokenizer string 
@@ -375,21 +397,26 @@ test_tokenizer (tokenizer2 $ tokenizer1) input ;;
 test_tokenizer tokenizer input  ;;
 *)
 
-
+(*
 (* === TESTS ON HTML PAGES === *)
 
 let (print_tokenize_file: string -> unit) = fun filename ->
       Stream.iter print_token (snd (tokenize_file filename)) 
+
 ;;
+MyStream.to_list (snd (tokenize_file "test/page1.html")) ;; 
+print_tokenize_file "test/page1.html" ;; 
 
-(*
-MyStream.to_list (snd (tokenize_file "test/page1.html")) ;; print_tokenize_file "test/page1.html" ;; 
+MyStream.to_list (snd (tokenize_file "test/page2.html")) ;; 
+print_tokenize_file "test/page2.html" ;; 
 
-MyStream.to_list (snd (tokenize_file "test/page2.html")) ;; print_tokenize_file "test/page2.html" ;; 
+MyStream.to_list (snd (tokenize_file "test/page3.html")) ;;  
+print_tokenize_file "test/page3.html" ;;
 
-MyStream.to_list (snd (tokenize_file "test/page3.html")) ;;  print_tokenize_file "test/page3.html" ;;
+MyStream.to_list (snd (tokenize_file "test/page4.html")) ;;  
+print_tokenize_file "test/page4.html" ;;
 
-MyStream.to_list (snd (tokenize_file "test/page4.html")) ;;  print_tokenize_file "test/page4.html" ;;
+MyStream.to_list (snd (tokenize_file "test/page5.html")) ;;  
+print_tokenize_file "test/page5.html" ;; 
 
-MyStream.to_list (snd (tokenize_file "test/page5.html")) ;;  print_tokenize_file "test/page5.html" ;; 
 *)

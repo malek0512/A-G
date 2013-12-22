@@ -23,6 +23,9 @@ let rec (to_string: char Stream.t -> string) = fun stream ->
       |	None -> ""
       |	Some c -> begin Stream.junk stream ; (String.make 1 c) ^ (to_string stream) end
 
+(*stream.icons c ie return Some c
+  stream.junk stream ie supprime le premier element du stream
+*)
 let rec (get_rid_of_spaces: char Stream.t -> char Stream.t) = fun stream ->
       match Stream.peek stream with
       |	None -> Stream.sempty
@@ -46,6 +49,9 @@ let rec (anything_but: 't list -> 't Stream.t -> 't list) = fun forbidden stream
 		  t :: (anything_but forbidden stream) 
 		end
 
+;;
+(*Renvoie une liste d'un stream privé d'une certain list d'elements*)
+(*anything_but [2] (Stream.of_list [3;4;2]);;*)
 
 let rec (iter_counter: int -> (int -> 't -> unit) -> 't list -> unit) = fun i action ts ->
       match ts with
