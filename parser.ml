@@ -8,66 +8,137 @@
  *)
 
 
-
+(*
 #load "dynlink.cma"
 #load "camlp4o.cma"
 #load "myStream.cmo"
 #load "tokenizer.cmo"
+*)
+
 open MyStream
 open Tokenizer
 
 type frequency = int*string
 
-let rec (occurence: token list -> token -> int) = fun token_list token -> 
-  match token_list with
-    |[]->0
-    |hd::tail -> if hd=token then 1 + occurence tail token else occurence tail token
+    (* Gere les bonus accordés aux balises*)
+let fctValue : (string -> int) = fun balise ->
+  match balise with
+	|"title" -> 100
+	|"h1" -> 70
+	|"h2" -> 50
+	|"h3" -> 30
+	|"b" -> 10
+	|"i" -> 5
+	|_ -> 0
+
+(* Convertie un string en une char list *)
+let string_to_list : string -> char list = fun s ->
+let rec string_to_list_aux : string -> char list -> int -> int -> char list= fun s l a aa->
+  if a = 0 then l
+  else (String.get s (aa-a)) :: (string_to_list_aux s l (a-1) aa)
+in string_to_list_aux s [] (String.length s) (String.length s)
+
+(* Convertie une char list en un string*)
+let (char_list_to_string: char list -> string) = fun charS ->
+      let string = String.create (List.length charS) in 
+	begin
+	  iter_counter 0 (fun i c -> String.set string i c) charS ;
+	  string 
+	end
+
+(* Gere la suppression des pluriels : aux -> al, oux -> ou, ees -> e, es -> e*)
+let desaccords : string -> string -> (bool*string) = fun m1 m2 ->
+  let diff = (String.length m2) - (String.length m1) in
+  let mot1 = string_to_list (if diff < 0 then m2 else m1) in
+  let mot2 = string_to_list (if diff < 0 then m1 else m2) in
+
+  let rec desaccords_aux: char list -> char list -> char list -> (bool*char list) = fun mot1 mot2 acc ->
+  
+  if abs diff <= 3 then
+    match (mot1,mot2) with
+      |([],[]) -> (true,acc)
+      |([],m) when m = ['e'] or m=['s'] or m = ['e';'s'] -> (true,acc)
+      |(a::n,b::m) when (a = 'l' && b = 'u' && (n=[] or n=['s']) && m = ['x']) -> (true,acc@['l'])
+      |('s'::[],'e'::'s'::[]) -> (true,acc)
+      |(a::n,b::m) when a = b -> (desaccords_aux n m (acc@[a]))
+      |(('s'|'e')::[],('s'|'e')::[]) -> (true,acc)
+      |_ -> (false,[])
+  else
+    (false,[]) in
+  let (b,s)=desaccords_aux mot1 mot2 [] in (b,char_list_to_string s)
+
+(* Ajoute un element (de type frequency) a une frequency list, avec modification du mot so pluriel existe deja*)
+let rec ajout: frequency -> frequency list -> frequency list = fun couple list ->  let (n,w) = couple in
+  match list with
+    |[] -> [(n,w)]
+    |(n1,w1)::tail -> let (b,s)=desaccords w1 w in if b then (n1+n,s)::tail else (n1,w1)::(ajout couple tail) 
+
+(* Idem que ajout, sans gestion des accords, et pluriels*)
+let rec ajout_with_occ: frequency -> frequency list -> frequency list = fun couple list ->  let (n,w) = couple in
+  match list with
+    |[] -> [(n,w)]
+    |(n1,w1)::tail -> if w=w1 then (n1+n,w)::tail else (n1,w1)::(ajout_with_occ couple tail) 
+
+(* Liste a partir d'un fichier Prepositions.txt, l'ensemble des mots interdits*)
+let prepositions = ["''";"``";" "]@ (List.map (fun (Word x) -> x) (MyStream.to_list (snd (Tokenizer.tokenize_file "test/Prepositions"))))
+
+(* 
+                                 Grammaire 
+(* Variables *)
+bonus : int, 
+L : frequency list, 
+
+(* Grammaire *)
+{bonus} Html {L} -> Open x . {bonus + fctVlaue x} Html {L'} ; {L:=L'}
+		  | Close x . {bonus - fctVlaue x} Html {L'} ; {L:=L'}
+		  | Word x . {bonus} Html {L'}
+//Calculs: if x (not €) prepositions then L := ajout (x,bonus+1) L'
+	   else L:= L'
+		  | _ . {bonus} Html {L'} ; {L:=L'}
+		  | Epsilon ; {L:=[]}
+
+*)
+let rec html: Tokenizer.token Stream.t -> int -> (frequency -> frequency list -> frequency list) -> frequency list = fun stream accPoint ajout ->
+  match stream with parser
+    |[< '(Open o); s >] -> html s (accPoint+fctValue o) ajout 
+    |[< '(Close o); s >] -> html s (accPoint-fctValue o) ajout
+    |[< '(Word w); s >] -> if not( List.exists (fun x -> w = x) prepositions) then (ajout (accPoint+1,w) (html s accPoint ajout)) else html s accPoint ajout
+    |[< 'x; s>] -> html s accPoint ajout
+    |[<>] -> []
 
 
+
+(* Index une page html *)      
 let (indexer: string -> frequency list) = fun filename ->
-  let rec indexer_aux : token list -> frequency list = fun token_list ->
-  match token_list with
-    |[] -> []
-    |Word s ::tail -> let i=occurence token_list (Word s) and suite=List.filter (fun x -> x<>Word s) tail in (i,s)::indexer_aux suite
-    |_::tail -> indexer_aux tail
+   let (_,token_stream) = Tokenizer.tokenize_file filename in 
+   List.sort (fun x y -> if x=y then 0 else if x<y then 1 else -1) (html token_stream 0 ajout)
 
-in    let (_,token_stream) = Tokenizer.tokenize_file filename in 
-      let token_list= MyStream.to_list (token_stream) in
-      List.sort (fun x y -> if x=y then 0 else if x<y then 1 else -1) (indexer_aux token_list)
-;;
-
-
+	
+(* Renvoie les 20 premiers mots de plus haute fréquence *)      
 let top_vingt: string -> frequency list = fun filename ->
   let frequency_list=indexer filename and resultat=ref [] in
   for i=0 to 20-1 do
     resultat:=!resultat @ [(List.nth frequency_list i)];
   done;  !resultat
-  
-let rec filter_prepositions : frequency list -> frequency list = fun frequency_list -> match frequency_list with
+
+(* Renvoie la liste des mots indexes et la liste des mots modifies*)
+let main : string -> (frequency list*frequency list) = fun s-> 
+  let (indexer_occ: string -> frequency list) = fun filename ->
+  let (_,token_stream) = Tokenizer.tokenize_file filename in 
+   List.sort (fun x y -> if x=y then 0 else if x<y then 1 else -1) (html token_stream 0 ajout_with_occ) in
+
+  let rec modified_words_aux gt lt =
+     match gt with
   |[] -> []
-  |(i,m)::b -> if not (List.mem m (prepositions)) then  (i,m)::filter_prepositions b else filter_prepositions b
+  |(n,s)::tail -> if not (List.exists (fun (nb,string) -> string=s) lt) then (n,s)::modified_words_aux tail lt else modified_words_aux tail lt
+  in let freq=(indexer s) in (freq,modified_words_aux (indexer_occ s) freq)
 
-;;
-let prepositions = List.map (fun (Word x) -> x) [Word "a"; Word "devers"; Word "pendant"; Word "apres"; Word "dixit"; Word "pour"; Word "attendu"; Word "durant"; Word "pres"; Word "au-dedans";Word "emmi"; Word "proto-"; Word "au-dehors"; Word "en"; Word "quant";
- Word "au-dela"; Word "endeans"; Word "revoici"; Word "au-dessous";
- Word "entre"; Word "revoila"; Word "au-dessus"; Word "envers"; Word "rez";
- Word "au-devant"; Word "es"; Word "sans"; Word "aupres"; Word "excepte";
- Word "sauf"; Word "autour"; Word "fors"; Word "selon"; Word "avant";
- Word "hormis"; Word "sous"; Word "avec"; Word "hors"; Word "sub";
- Word "chez"; Word "juridique"; Word "suivant"; Word "concernant";
- Word "jusque"; Word "sur"; Word "contre"; Word "lez"; Word "vers"; Word "d";
- Word "malgre"; Word "versus"; Word "dans"; Word "moyennant"; Word "via";
- Word "de"; Word "nonobstant"; Word "vis-a-vis"; Word "depuis"; Word "outre";
- Word "voici"; Word "derriere"; Word "par"; Word "voile"; Word "des";
- Word "parmi"; Word "devant"; Word "passe"];;
+let _ = indexer "test/page1.html"
+let _ = main "test/page1.html"
+let _ = top_vingt "test/page1.html" 
 
-MyStream.to_list (snd (Tokenizer.tokenize_file "test/page1.html")) ;; 
-Tokenizer.print_tokenize_file "test/page1.html" ;; 
-indexer "test/page1.html" ;;
-top_vingt "test/page1.html" ;;
-filter_prepositions (indexer "test/page1.html") ;;
-
-MyStream.to_list (snd (Tokenizer.tokenize_file "test/Prepositions")) ;; 
+  
+(*
 
 (* TEST *)
 
@@ -93,3 +164,4 @@ MyStream.to_list (snd (Tokenizer.tokenize_file "test/page5.html")) ;;
 Tokenizer.print_tokenize_file "test/page5.html" ;; 
 indexer "test/page5.html" ;;
 
+*)

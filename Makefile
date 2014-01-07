@@ -13,6 +13,17 @@ all: $(EXECUTABLE)
 %.cmi: %.mli
 	ocamlc -c -pp "camlp4o.opt -unsafe" $<
 
+############################ Parser #######################################
+
+parser.mli: parser.ml myStream.cmo tokenizer.cmo
+	ocamlc -i -pp "camlp4o.opt -unsafe" myStream.cmo tokenizer.cmo $< > $@
+
+parser.cmi: parser.mli
+	ocamlc -c -pp "camlp4o.opt -unsafe" $<
+
+parser.cmo: parser.ml parser.cmi tokenizer.cmo myStream.cmo
+	ocamlc -pp "camlp4o.opt -unsafe" myStream.cmo tokenizer.cmo -c parser.ml
+
 
 ############################ Tokenizer ####################################
 
@@ -38,10 +49,12 @@ myStream.cmo: myStream.ml myStream.cmi
 
 ############################ Main ######################################
 
-main: main.ml tokenizer.cmo myStream.cmo
-	ocamlc myStream.cmo tokenizer.cmo -o main
+main: main.ml 
+	ocamlbuild -pp "camlp4o.opt -unsafe" main.native	       
+	#ocamlc  -pp "camlp4o.opt -unsafe" myStream.cmo tokenizer.cmo parser.cmo -o main
 
-cmo: tokenizer.cmo myStream.cmo
+cmo: tokenizer.cmo myStream.cmo parser.cmo
 
 clean:
 		rm -fR $(EXECUTABLE) *.cmo *.cmi
+		ocamlbuild -clean

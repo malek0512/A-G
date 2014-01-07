@@ -47,3 +47,4 @@ val tokenizer3 : token Stream.t -> token Stream.t
 val tokenizer4 : token Stream.t -> token Stream.t
 val tokenizer : char Stream.t -> token Stream.t
 val tokenize_file : string -> bool * token Stream.t
+val print_tokenize_file : string -> unit

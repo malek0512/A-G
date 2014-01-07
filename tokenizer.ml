@@ -397,12 +397,12 @@ test_tokenizer (tokenizer2 $ tokenizer1) input ;;
 test_tokenizer tokenizer input  ;;
 *)
 
-(*
 (* === TESTS ON HTML PAGES === *)
 
 let (print_tokenize_file: string -> unit) = fun filename ->
       Stream.iter print_token (snd (tokenize_file filename)) 
 
+(*
 ;;
 MyStream.to_list (snd (tokenize_file "test/page1.html")) ;; 
 print_tokenize_file "test/page1.html" ;; 

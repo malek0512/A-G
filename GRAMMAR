@@ -1,0 +1,46 @@
+Grammaire avec liste de balise non exhaustive : 
+On devrait y ajouter tout un enchainement d'inclusions possibles ou non de balises.
+
+Html -> Open html . Html
+      | Close html . Html
+      | Open head . Head . Html
+      | Open title . Title . Html
+      | Open h1 . H1 . Html
+      | Open h2 . H2 . Html
+      | Open h3 . H3 . Html
+      | Open b . B . Html
+      | Open body . Body . Html      
+      | Open link . Html 
+      |	Open img . Html
+      |	Open a . Html
+      
+Word -> renvoie un mot
+
+Head -> Word . Head | Close head . Html
+Title -> Word . Title | Close Title . Html
+H1 -> Word . H1 | Close H1 . Html
+H2 -> Word . H2 | Close h2 . Html
+H3 -> Word . H3 | Close h3 . Html
+B -> Word . B | Close b . Html
+Body -> Word . Body | Close body . Html
+
+Grammaire actuelle avec attributs :
+
+(* Variables *)
+bonus : int, 
+L : frequency list, 
+
+(* Fonctions *)
+fctValue x : string -> int,
+ajout : string*int -> frequency list -> frequency list
+
+(* Grammaire *)
+{bonus} Html {L} -> Open x . {bonus + fctVlaue x} Html {L'} ; {L:=L'}
+		  | Close x . {bonus - fctVlaue x} Html {L'} ; {L:=L'}
+		  | Word x . {bonus} Html {L'}
+//Calculs: if x (not €) prepositions then L := ajout (x,bonus+1) L'
+	   else L:= L'
+		  | _ . {bonus} Html {L'} ; {L:=L'}
+		  | END {L}
+
+END {L} -> [] ; {L:=[]}
