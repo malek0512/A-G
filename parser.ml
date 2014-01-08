@@ -14,7 +14,6 @@
 #load "myStream.cmo"
 #load "tokenizer.cmo"
 *)
-
 open MyStream
 open Tokenizer
 
@@ -59,9 +58,10 @@ let desaccords : string -> string -> (bool*string) = fun m1 m2 ->
       |([],[]) -> (true,acc)
       |([],m) when m = ['e'] or m=['s'] or m = ['e';'s'] -> (true,acc)
       |(a::n,b::m) when (a = 'l' && b = 'u' && (n=[] or n=['s']) && m = ['x']) -> (true,acc@['l'])
-      |('s'::[],'e'::'s'::[]) -> (true,acc)
+      |['o';'u'], ['o';'u';'x'] -> (true,acc@['o';'u'])
+      |['s'],['e';'s'] -> (true,acc)
       |(a::n,b::m) when a = b -> (desaccords_aux n m (acc@[a]))
-      |(('s'|'e')::[],('s'|'e')::[]) -> (true,acc)
+      |[('s'|'e')], [('s'|'e')] -> (true,acc)
       |_ -> (false,[])
   else
     (false,[]) in
@@ -71,7 +71,7 @@ let desaccords : string -> string -> (bool*string) = fun m1 m2 ->
 let rec ajout: frequency -> frequency list -> frequency list = fun couple list ->  let (n,w) = couple in
   match list with
     |[] -> [(n,w)]
-    |(n1,w1)::tail -> let (b,s)=desaccords w1 w in if b then (n1+n,s)::tail else (n1,w1)::(ajout couple tail) 
+    |(n1,w1)::tail -> let  (b,s)=desaccords w1 w in if b then (n1+n,s)::tail else (n1,w1)::(ajout couple tail) 
 
 (* Idem que ajout, sans gestion des accords, et pluriels*)
 let rec ajout_with_occ: frequency -> frequency list -> frequency list = fun couple list ->  let (n,w) = couple in
@@ -87,13 +87,18 @@ let prepositions = ["''";"``";" "]@ (List.map (fun (Word x) -> x) (MyStream.to_l
 (* Variables *)
 bonus : int, 
 L : frequency list, 
+_ : Symbol of string
+    | Integer of int
+    | Mark of string
+    | String of string
+    | Ident of string
+    | Comment 
+    | Space
 
 (* Grammaire *)
 {bonus} Html {L} -> Open x . {bonus + fctVlaue x} Html {L'} ; {L:=L'}
 		  | Close x . {bonus - fctVlaue x} Html {L'} ; {L:=L'}
-		  | Word x . {bonus} Html {L'}
-//Calculs: if x (not €) prepositions then L := ajout (x,bonus+1) L'
-	   else L:= L'
+		  | Word x . {bonus} Html {L'} ; //Calculs: if x (not €) prepositions then L := ajout (x,bonus+1) L' else L:= L'
 		  | _ . {bonus} Html {L'} ; {L:=L'}
 		  | Epsilon ; {L:=[]}
 
@@ -102,7 +107,7 @@ let rec html: Tokenizer.token Stream.t -> int -> (frequency -> frequency list ->
   match stream with parser
     |[< '(Open o); s >] -> html s (accPoint+fctValue o) ajout 
     |[< '(Close o); s >] -> html s (accPoint-fctValue o) ajout
-    |[< '(Word w); s >] -> if not( List.exists (fun x -> w = x) prepositions) then (ajout (accPoint+1,w) (html s accPoint ajout)) else html s accPoint ajout
+    |[< '(Word w); s >] -> let wl = String.lowercase w in if not( List.exists (fun x -> wl = x) prepositions) then (ajout (accPoint+1,wl) (html s accPoint ajout)) else html s accPoint ajout
     |[< 'x; s>] -> html s accPoint ajout
     |[<>] -> []
 
@@ -131,7 +136,8 @@ let main : string -> (frequency list*frequency list) = fun s->
      match gt with
   |[] -> []
   |(n,s)::tail -> if not (List.exists (fun (nb,string) -> string=s) lt) then (n,s)::modified_words_aux tail lt else modified_words_aux tail lt
-  in let freq=(indexer s) in (freq,modified_words_aux (indexer_occ s) freq)
+  in
+let freq=(indexer s) in (freq,modified_words_aux (indexer_occ s) freq)
 
 let _ = indexer "test/page1.html"
 let _ = main "test/page1.html"
